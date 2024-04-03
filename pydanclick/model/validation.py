@@ -8,7 +8,7 @@ Validation involves the following steps:
 - pass the nested representation to the `model_validate` method of the Pydantic model
 """
 
-from typing import Any, Dict, Type
+from typing import Any, Callable, Dict, Optional, Type
 
 from pydantic import BaseModel
 from typing_extensions import TypeVar
@@ -21,7 +21,10 @@ K = TypeVar("K", bound=str)
 
 
 def model_validate_kwargs(
-    kwargs: Dict[ArgumentName, Any], model: Type[M], qualified_names: Dict[ArgumentName, DottedFieldName]
+    kwargs: Dict[ArgumentName, Any],
+    model: Type[M],
+    qualified_names: Dict[ArgumentName, DottedFieldName],
+    validators: Optional[Dict[str, Callable]] = None,
 ) -> M:
     """Instantiate `model` for keyword arguments.
 

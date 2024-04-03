@@ -17,6 +17,7 @@ M = TypeVar("M", bound=BaseModel)
 
 def convert_to_click(
     model: Type[M],
+    validators: Dict[str, Callable],
     *,
     exclude: Sequence[str] = (),
     rename: Optional[Dict[str, str]] = None,
@@ -56,6 +57,7 @@ def convert_to_click(
         docstring_style: docstring style of the model. Only used if `parse_docstring=True`
         extra_options: extra options to pass to `click.Option` for specific fields, as a mapping from dotted field names
             to option dictionary
+        validators: a mapping from field names to a callable used to validate command line values
 
     Returns:
         a pair `(options, validate)` where `options` is the list of Click options extracted from the model, and
@@ -68,6 +70,7 @@ def convert_to_click(
         excluded_fields=cast(Set[DottedFieldName], set(exclude)),
         docstring_style=docstring_style,
         parse_docstring=parse_docstring,
+        validators=validators,
     )
     qualified_names, options = convert_fields_to_options(
         fields,

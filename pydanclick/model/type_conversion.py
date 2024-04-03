@@ -3,7 +3,7 @@
 import datetime
 import re
 from pathlib import Path
-from typing import Any, List, Literal, Type, TypedDict, Union, get_args, get_origin
+from typing import Any, Callable, List, Literal, Optional, Type, TypedDict, Union, get_args, get_origin
 from uuid import UUID
 
 import click
@@ -73,7 +73,7 @@ def _get_numerical_type(field: FieldInfo) -> click.ParamType:
     return click.FLOAT
 
 
-def _get_type_from_field(field: FieldInfo) -> click.ParamType:
+def _get_type_from_field(field: FieldInfo, validator: Optional[Callable] = None) -> click.ParamType:
     """Get the Click type for a Pydantic field.
 
     Pydantic and Click both define custom types for validating arguments. This function attempts to map Pydantic field
@@ -84,6 +84,7 @@ def _get_type_from_field(field: FieldInfo) -> click.ParamType:
 
     Args:
         field: field to convert
+        validator: optional callable to convert command line value to expected type
 
     Returns:
         a Click type
@@ -102,8 +103,6 @@ def _get_type_from_field(field: FieldInfo) -> click.ParamType:
         return click.STRING
     elif field_type in (int, float):
         return _get_numerical_type(field)
-    elif field_type is float:
-        return click.FLOAT
     elif field_type is bool:
         return click.BOOL
     elif field_type is UUID:
@@ -116,10 +115,10 @@ def _get_type_from_field(field: FieldInfo) -> click.ParamType:
         # TODO: allow converting literal to feature switches
         return click.Choice(field_args)
     else:
-        return _create_custom_type(field)
+        return _create_custom_type(field, validator)
 
 
-def _create_custom_type(field: FieldInfo) -> click.ParamType:
+def _create_custom_type(field: FieldInfo, validator: Optional[Callable] = None) -> click.ParamType:
     """Create a custom Click type from a Pydantic field."""
     name = "".join(part.capitalize() for part in re.split(r"\W", str(field.annotation)) if part)
     type_adapter = TypeAdapter(field.annotation)
@@ -127,6 +126,9 @@ def _create_custom_type(field: FieldInfo) -> click.ParamType:
     def convert(self, value, param, ctx):  # type: ignore[no-untyped-def]
         try:
             if isinstance(value, str):
+                if validator is not None:
+                    value = validator(value)
+                    return type_adapter.validate_python(value)
                 return type_adapter.validate_json(value)
             else:
                 return type_adapter.validate_python(value)
