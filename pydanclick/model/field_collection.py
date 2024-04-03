@@ -2,7 +2,7 @@
 
 import dataclasses
 import re
-from typing import Any, Iterable, List, Literal, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -23,6 +23,7 @@ class _Field:
         field_info: Pydantic `FieldInfo` object representing the field
         documentation: help string for the field, if available
         parents: list of parent names for the field
+        validator: optional callable to validate the input value
     """
 
     name: FieldName
@@ -30,6 +31,7 @@ class _Field:
     field_info: FieldInfo
     documentation: Optional[str] = None
     parents: Tuple[FieldName, ...] = ()
+    validator: Optional[Callable] = None
 
     @property
     def is_boolean_flag(self) -> bool:
@@ -39,6 +41,7 @@ class _Field:
 
 def collect_fields(
     obj: Type[BaseModel],
+    validators: Dict[str, Callable],
     excluded_fields: Iterable[DottedFieldName] = frozenset(),
     parse_docstring: bool = True,
     docstring_style: Literal["google", "numpy", "sphinx"] = "google",
@@ -51,6 +54,7 @@ def collect_fields(
             all its parent names, separated by dots
         parse_docstring: if True, parse the model docstring and extract document for each field
         docstring_style: docstring style of the model. Ignored if `parse_docstring=False`
+        validators: a mapping from field names to a callable used to validate command line values
 
     Returns:
         a mapping from field dotted names to field objects. Each field object contains the Pydantic `FieldInfo`, as well
@@ -63,7 +67,9 @@ def collect_fields(
         excluded_pattern = None
     return [
         option
-        for option in _collect_fields(obj, docstring_style=docstring_style, parse_docstring=parse_docstring)
+        for option in _collect_fields(
+            obj, docstring_style=docstring_style, parse_docstring=parse_docstring, validators=validators
+        )
         if excluded_pattern is None or not re.search(excluded_pattern, option.dotted_name)
     ]
 
@@ -89,6 +95,7 @@ def _is_pydantic_model(model: Any) -> TypeGuard[Type[BaseModel]]:
 
 def _collect_fields(
     obj: Union[Type[BaseModel], FieldInfo],
+    validators: Dict[str, Callable],
     name: FieldName = "",  # type: ignore[assignment]
     parents: Tuple[FieldName, ...] = (),
     documentation: Optional[str] = None,
@@ -109,6 +116,7 @@ def _collect_fields(
                 parents=(*parents, field_name),
                 documentation=documentation,
                 parse_docstring=parse_docstring,
+                validators=validators,
             )
     elif isinstance(obj, FieldInfo):
         if not name:
@@ -121,15 +129,18 @@ def _collect_fields(
                     parents=parents,
                     documentation=documentation,
                     parse_docstring=parse_docstring,
+                    validators=validators,
                 )
         # TODO: exclude base models from the union
         dotted_name = DottedFieldName(".".join(parents))
+        serializer = validators.get(dotted_name, None)
         yield _Field(
             name=name,
             dotted_name=dotted_name,
             parents=parents,
             field_info=obj,
             documentation=documentation,
+            validator=serializer,
         )
     else:
         raise TypeError(f"Can't process {type(obj)}: {obj} is neither a `BaseModel`, nor a `FieldInfo`")

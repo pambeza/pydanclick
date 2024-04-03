@@ -55,6 +55,7 @@ def convert_fields_to_options(
             documentation=field.field_info.description or field.documentation,
             short_name=shorten.get(field.dotted_name, None),
             option_kwargs=extra_options.get(field.dotted_name, {}),
+            validator=field.validator,
         )
         options.append(option)
         qualified_names[argument_name] = field.dotted_name
@@ -139,6 +140,7 @@ def _get_option_from_field(
     documentation: Optional[str] = None,
     short_name: Optional[str] = None,
     option_kwargs: Optional[_ParameterKwargs] = None,
+    validator: Optional[Callable] = None,
 ) -> click.Option:
     """Convert a Pydantic field to a Click option.
 
@@ -150,6 +152,7 @@ def _get_option_from_field(
         documentation: help string for the option
         short_name: short name of the option (one dash and one letter)
         option_kwargs: extra options to pass to `click.option`
+        validator: callable to validate command line value
 
     Returns:
         `click.Option` object
@@ -158,7 +161,7 @@ def _get_option_from_field(
     if short_name is not None:
         param_decls.append(short_name)
     kwargs: _ParameterKwargs = {
-        "type": _get_type_from_field(field_info),
+        "type": _get_type_from_field(field_info, validator),
         "default": _get_default_value_from_field(field_info),
         "required": field_info.is_required(),
         "help": documentation,

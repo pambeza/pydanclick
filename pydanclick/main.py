@@ -22,6 +22,7 @@ def from_pydantic(
     parse_docstring: bool = True,
     docstring_style: Literal["google", "numpy", "sphinx"] = "google",
     extra_options: Optional[Dict[str, _ParameterKwargs]] = None,
+    validators: Optional[Dict[str, Callable]] = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to add fields from a Pydantic model as options to a Click command.
 
@@ -37,6 +38,7 @@ def from_pydantic(
             documentation to the Click `help` option
         docstring_style: style of the docstring (`google`, `numpy` or `sphinx`). Ignored if `parse_docstring` is False
         extra_options: a mapping from field names to a dictionary of options passed to the `click.option()` function
+        validators: a mapping from field names to a callable used to validate command line values
 
     Returns:
         a decorator that adds options to a function
@@ -48,6 +50,8 @@ def from_pydantic(
     else:
         model = __var_or_model
         variable_name = camel_case_to_snake_case(model.__name__)
+    if validators is None:
+        validators = {}
     options, validator = convert_to_click(
         model,
         exclude=exclude,
@@ -57,6 +61,7 @@ def from_pydantic(
         parse_docstring=parse_docstring,
         docstring_style=docstring_style,
         extra_options=extra_options,
+        validators=validators,
     )
 
     def wrapper(f: Callable[..., T]) -> Callable[..., T]:
