@@ -133,14 +133,14 @@ def _collect_fields(
                 )
         # TODO: exclude base models from the union
         dotted_name = DottedFieldName(".".join(parents))
-        serializer = validators.get(dotted_name, None)
+        validator = validators.get(dotted_name, None)
         yield _Field(
             name=name,
             dotted_name=dotted_name,
             parents=parents,
             field_info=obj,
             documentation=documentation,
-            validator=serializer,
+            validator=validator,
         )
     else:
         raise TypeError(f"Can't process {type(obj)}: {obj} is neither a `BaseModel`, nor a `FieldInfo`")

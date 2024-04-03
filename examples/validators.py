@@ -1,15 +1,11 @@
 from typing import List
 
 import click
-import typer
 from pydantic import BaseModel
 
 from pydanclick import from_pydantic
 
-app = typer.Typer()
 
-
-@app.command()
 class CustomSubModel(BaseModel):
     sub_values: List[str]
 
